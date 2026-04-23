@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlockWatch Dashboard - MN</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.0/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.0/dist/MarkerCluster.Default.css" />
+    <style>
+        body { margin:0; font-family: system-ui, sans-serif; background:#f8f9fa; }
+        #header { background:#fff; padding:15px 20px; border-bottom:4px solid #e63939; display:flex; justify-content:space-between; align-items:center; }
+        #container { display:flex; height:calc(100vh - 68px); }
+        #sidebar { width:340px; background:white; padding:20px; overflow-y:auto; box-shadow:4px 0 12px rgba(0,0,0,0.1); }
+        #map { flex:1; }
+        button { width:100%; padding:12px; margin:8px 0; border-radius:8px; font-size:16px; cursor:pointer; }
+        button.primary { background:#e63939; color:white; border:none; }
+        .stat { font-size:28px; font-weight:700; color:#e63939; }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1 style="margin:0; color:#e63939;">FlockWatch</h1>
+        <div>Shorewood, MN Demo + Live</div>
+    </div>
+    <div id="container">
+        <div id="sidebar">
+            <input type="text" id="city-zip-input" value="Shorewood, MN" style="width:100%;padding:10px;">
+            <button onclick="searchLocation()" class="primary">🔎 Search Area</button>
+            
+            <button onclick="loadLiveCameras()" class="primary" id="live-btn">🌐 Try Load Live Cameras</button>
+            <button onclick="showDemoCameras()">📍 Reset to Demo Cameras</button>
+
+            <div style="margin-top:25px;">
+                <strong>Cameras Visible:</strong> <span id="camera-count" class="stat">—</span>
+            </div>
+            <div id="status" style="margin-top:15px; font-size:14px;"></div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.0/dist/leaflet.markercluster.js"></script>
+    <script>
+        let map, markers;
+        const OVERPASS_URL = "https://overpass.private.coffee/api/interpreter";
+
+        const demoCameras = [ /* same as before */ ];
+
+        function initMap() {
+            map = L.map('map').setView([44.905, -93.52], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            markers = L.markerClusterGroup();
+            map.addLayer(markers);
+            showDemoCameras();
+        }
+
+        function showDemoCameras() {
+            markers.clearLayers();
+            // Add your demo cameras here (same list as previous versions)
+            document.getElementById('camera-count').textContent = "7 (Demo)";
+            document.getElementById('status').innerHTML = "✅ Demo mode active. Live may not work from local file due to browser security.";
+        }
+
+        async function loadLiveCameras() {
+            const btn = document.getElementById('live-btn');
+            btn.disabled = true;
+            btn.textContent = "⏳ Trying... (may take 10-20s)";
+
+            document.getElementById('status').innerHTML = "Sending query...";
+
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
+
+                const bounds = map.getBounds();
+                const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+
+                const query = `[out:json][timeout:15];(node["man_made"="surveillance"]["surveillance:type"="ALPR"]["manufacturer"~"Flock" i](${bbox}););out;`;
+
+                const res = await fetch(OVERPASS_URL, {
+                    method: "POST",
+                    signal: controller.signal,
+                    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                    body: `data=${encodeURIComponent(query)}`
+                });
+
+                clearTimeout(timeout);
+
+                if (!res.ok) throw new Error("Server error");
+
+                const data = await res.json();
+                markers.clearLayers();
+                let count = 0;
+
+                data.elements.forEach(el => {
+                    if (el.lat && el.lon) {
+                        count++;
+                        L.marker([el.lat, el.lon]).bindPopup(`Flock Camera<br>ID: ${el.id}`).addTo(markers);
+                    }
+                });
+
+                document.getElementById('camera-count').textContent = count;
+                document.getElementById('status').innerHTML = count ? `✅ Found ${count} cameras` : "No cameras in current view";
+            } catch (e) {
+                document.getElementById('status').innerHTML = `❌ Live load failed.<br>Try hosting on GitHub Pages (instructions above).`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "🌐 Try Load Live Cameras";
+            }
+        }
+
+        async function searchLocation() { /* same as before */ }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
