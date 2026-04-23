@@ -8,33 +8,53 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.0/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.0/dist/MarkerCluster.Default.css" />
     <style>
-        body { margin:0; font-family:system-ui,sans-serif; background:#f8f9fa; }
-        #header { background:#fff; padding:15px 20px; border-bottom:4px solid #e63939; display:flex; justify-content:space-between; align-items:center; }
-        #container { display:flex; height:calc(100vh - 68px); }
-        #sidebar { width:340px; background:white; padding:20px; overflow-y:auto; box-shadow:4px 0 12px rgba(0,0,0,0.1); }
+        body { margin:0; font-family: system-ui, sans-serif; background:#f8f9fa; }
+        #header { background:#fff; padding:16px 24px; border-bottom:4px solid #e63939; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+        #container { display:flex; height:calc(100vh - 72px); }
+        #sidebar { width:360px; background:white; padding:24px; overflow-y:auto; box-shadow:4px 0 15px rgba(0,0,0,0.1); }
         #map { flex:1; }
-        button { width:100%; padding:12px; margin:8px 0; border-radius:8px; font-size:16px; cursor:pointer; }
-        button.primary { background:#e63939; color:white; border:none; font-weight:600; }
-        .stat { font-size:32px; font-weight:700; color:#e63939; }
+        button, input { width:100%; padding:14px; margin:10px 0; border-radius:8px; font-size:16px; }
+        button.primary { background:#e63939; color:white; border:none; font-weight:600; cursor:pointer; }
+        button.primary:hover { background:#c81e1e; }
+        button.secondary { background:#222; color:white; border:none; }
+        .stat { font-size:36px; font-weight:700; color:#e63939; margin:8px 0; }
+        .demo-badge { background:#28a745; color:white; padding:4px 12px; border-radius:999px; font-size:14px; }
     </style>
 </head>
 <body>
     <div id="header">
-        <h1 style="margin:0;color:#e63939;">FlockWatch</h1>
-        <div>Shorewood, MN • Live ALPR</div>
+        <h1 style="margin:0; color:#e63939;">FlockWatch</h1>
+        <div style="text-align:right;">
+            <strong>Shorewood &amp; Lake Minnetonka</strong><br>
+            <span class="demo-badge">DEMO MODE</span>
+        </div>
     </div>
+
     <div id="container">
         <div id="sidebar">
-            <input type="text" id="search-input" value="Shorewood, MN" style="padding:10px;">
-            <button onclick="searchLocation()" class="primary">🔎 Search Area</button>
-            <button onclick="loadLiveCameras()" class="primary" id="live-btn">🌐 Load Live Flock Cameras</button>
-            <button onclick="showDemoCameras()">📍 Reset Demo Cameras</button>
+            <h3>📍 Location</h3>
+            <input type="text" id="search-input" value="Shorewood, MN" placeholder="City or ZIP">
+            <button onclick="searchLocation()" class="primary">🔎 Search & Center Map</button>
 
-            <div style="margin-top:25px;">
-                <strong>Cameras Visible:</strong> <span id="camera-count" class="stat">7 (Demo)</span>
+            <button onclick="window.open('https://deflock.org/map', '_blank')" class="primary" style="margin-top:20px; background:#0066cc;">
+                🌐 View Full Live Map on DeFlock.me
+            </button>
+
+            <button onclick="showDemoCameras()" class="secondary">📍 Reset Demo Cameras</button>
+
+            <div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:12px;">
+                <strong>FLOCK ALPR CAMERAS VISIBLE</strong>
+                <div id="camera-count" class="stat">7</div>
+                <small style="color:#666;">Demo data around Shorewood / Minnetonka</small>
             </div>
-            <div id="status" style="margin-top:15px; font-size:14px;"></div>
+
+            <div style="margin-top:30px; font-size:14px; line-height:1.5; color:#444;">
+                <strong>Best Real-Time Source:</strong><br>
+                <a href="https://deflock.org/map" target="_blank" style="color:#0066cc;">DeFlock.me →</a><br><br>
+                Data is crowdsourced from OpenStreetMap.
+            </div>
         </div>
+
         <div id="map"></div>
     </div>
 
@@ -42,11 +62,23 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.0/dist/leaflet.markercluster.js"></script>
     <script>
         let map, markers;
-        const demoCameras = [ /* same 7 cameras as before */ ];
+
+        const demoCameras = [
+            {lat: 44.905, lon: -93.55, popup: "<b>Flock Safety ALPR</b><br>Agency: Shorewood PD<br>Direction: Northbound Hwy 7"},
+            {lat: 44.92, lon: -93.48, popup: "<b>Flock Safety ALPR</b><br>Agency: Minnetonka PD"},
+            {lat: 44.89, lon: -93.52, popup: "<b>Flock Safety ALPR</b><br>Agency: Excelsior PD"},
+            {lat: 44.96, lon: -93.45, popup: "<b>Flock Safety ALPR</b><br>Agency: Wayzata PD"},
+            {lat: 44.88, lon: -93.58, popup: "<b>Flock Safety ALPR</b><br>Agency: Chanhassen PD"},
+            {lat: 44.91, lon: -93.50, popup: "<b>Flock Safety ALPR</b><br>Agency: Shorewood PD"},
+            {lat: 44.93, lon: -93.47, popup: "<b>Flock Safety ALPR</b><br>Agency: Deephaven PD"}
+        ];
 
         function initMap() {
             map = L.map('map').setView([44.905, -93.52], 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
             markers = L.markerClusterGroup();
             map.addLayer(markers);
             showDemoCameras();
@@ -54,65 +86,21 @@
 
         function showDemoCameras() {
             markers.clearLayers();
-            // Add demo cameras here (same list)
-            document.getElementById('camera-count').innerHTML = '7 <span style="font-size:16px">(Demo)</span>';
-            document.getElementById('status').innerHTML = '✅ Demo working';
+            demoCameras.forEach(cam => {
+                L.marker([cam.lat, cam.lon]).bindPopup(cam.popup).addTo(markers);
+            });
+            document.getElementById('camera-count').textContent = demoCameras.length;
         }
 
-        async function loadLiveCameras() {
-            const btn = document.getElementById('live-btn');
-            btn.disabled = true;
-            btn.textContent = "⏳ Trying multiple servers...";
-
-            document.getElementById('status').innerHTML = "Trying to fetch live data...";
-
-            // Try multiple Overpass mirrors
-            const mirrors = [
-                "https://overpass.private.coffee/api/interpreter",
-                "https://overpass.kumi.systems/api/interpreter",
-                "https://overpass-api.de/api/interpreter"
-            ];
-
-            for (let url of mirrors) {
-                try {
-                    const bounds = map.getBounds();
-                    const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
-                    const query = `[out:json][timeout:15];(node["man_made"="surveillance"]["surveillance:type"="ALPR"]["manufacturer"~"Flock" i](${bbox}););out;`;
-
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                        body: `data=${encodeURIComponent(query)}`
-                    });
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        markers.clearLayers();
-                        let count = 0;
-                        data.elements.forEach(el => {
-                            if (el.lat && el.lon) {
-                                count++;
-                                L.marker([el.lat, el.lon]).bindPopup(`Flock Camera<br>ID: ${el.id}`).addTo(markers);
-                            }
-                        });
-                        document.getElementById('camera-count').textContent = count || "0";
-                        document.getElementById('status').innerHTML = `✅ Loaded ${count} live cameras from live server`;
-                        btn.disabled = false;
-                        btn.textContent = "🌐 Load Live Flock Cameras";
-                        return;
-                    }
-                } catch(e) {}
+        function searchLocation() {
+            const q = document.getElementById('search-input').value.toLowerCase();
+            if (q.includes("shorewood") || q.includes("55391")) {
+                map.flyTo([44.905, -93.52], 13);
+            } else if (q.includes("minnetonka") || q.includes("wayzata")) {
+                map.flyTo([44.94, -93.48], 13);
+            } else {
+                alert("Demo supports Shorewood / Lake Minnetonka area.");
             }
-
-            document.getElementById('status').innerHTML = `❌ All mirrors failed.<br>Demo still works.`;
-            btn.disabled = false;
-            btn.textContent = "🌐 Load Live Flock Cameras";
-        }
-
-        async function searchLocation() {
-            const q = document.getElementById('search-input').value;
-            // Simple search logic
-            if (q.toLowerCase().includes("shorewood")) map.flyTo([44.905, -93.52], 13);
         }
 
         window.onload = initMap;
